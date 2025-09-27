@@ -29,43 +29,42 @@ export default function GourmetNetHome() {
   console.log('GourmetNet Home loaded');
 
   const handleGenerateRecipe = async () => {
-    if (selectedIngredients.length === 0) {
-      Alert.alert('Missing Ingredients', 'Please add at least one ingredient to generate a recipe.');
-      return;
-    }
+  if (selectedIngredients.length === 0) {
+    Alert.alert('Missing Ingredients', 'Please add at least one ingredient to generate a recipe.');
+    return;
+  }
 
-    console.log('Generating recipe with:', { selectedIngredients, selectedDietaryStyle });
-    setIsGenerating(true);
+  console.log('Fetching recipes with:', { selectedIngredients, selectedDietaryStyle });
+  setIsGenerating(true);
 
-    try {
-      // Generate recipe using Gemini AI
-      const recipe = await generateRecipe(selectedIngredients, selectedDietaryStyle);
-      console.log('Recipe generated:', recipe.title);
-      
-      setIsGenerating(false);
-      
-      // Navigate to recipe detail with the generated recipe data
-      const ingredientsParam = selectedIngredients.join(',');
-      router.push({
-        pathname: '/recipe/[id]',
-        params: {
-          id: recipe.id,
-          ingredients: ingredientsParam,
-          style: selectedDietaryStyle,
-          recipeData: JSON.stringify(recipe)
-        }
-      });
-    } catch (error) {
-      console.error('Error generating recipe:', error);
-      setIsGenerating(false);
-      
-      Alert.alert(
-        'Recipe Generation Failed',
-        'There was an error generating your recipe. Please try again or check your internet connection.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
+  try {
+    // Call backend API
+    const recipe = await searchRecipes(selectedIngredients, selectedDietaryStyle);
+    console.log('Recipe fetched:', recipe.title);
+
+    setIsGenerating(false);
+
+    const ingredientsParam = selectedIngredients.join(',');
+    router.push({
+      pathname: '/recipe/[id]',
+      params: {
+        id: recipe.id,
+        ingredients: ingredientsParam,
+        style: selectedDietaryStyle,
+        recipeData: JSON.stringify(recipe),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching recipe:', error);
+    setIsGenerating(false);
+
+    Alert.alert(
+      'Recipe Fetch Failed',
+      'There was an error fetching your recipe. Please try again later.',
+      [{ text: 'OK' }]
+    );
+  }
+};
 
   const handleImageInput = () => {
     console.log('Opening image recognition');
