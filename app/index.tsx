@@ -17,7 +17,7 @@ import DietaryStyleSelector from '../components/DietaryStyleSelector';
 import ImageIngredientRecognition from '../components/ImageIngredientRecognition';
 import Button from '../components/Button';
 import Icon from '../components/Icon';
-import { generateRecipe } from '../data/mockData';
+import { searchRecipes } from '../services/recipeService';
 
 export default function GourmetNetHome() {
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
