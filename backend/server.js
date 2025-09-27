@@ -1,53 +1,62 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+import express from 'express';
+import axios from 'axios';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const app = express();
-const PORT = 3001;
+const router = express.Router();
 
-app.use(cors());
-app.use(express.json());
-
-const dietaryStyles = [
-    { id: '1', name: 'Mediterranean', description: 'Fresh, healthy ingredients...', icon: '🫒' },
-    { id: '2', name: 'Asian Fusion', description: 'Bold flavors with soy...', icon: '🥢' },
-    { id: '3', name: 'Italian', description: 'Classic Italian with pasta...', icon: '🍝' },
-    { id: '4', name: 'Mexican', description: 'Spicy and vibrant...', icon: '🌶️' },
-    { id: '5', name: 'Vegetarian', description: 'Plant-based ingredients only', icon: '🥬' },
-    { id: '6', name: 'Keto', description: 'Low-carb, high-fat recipes', icon: '🥑' }
-];
-const commonIngredients = ['Chicken breast', 'Salmon', 'Ground beef', 'Eggs', 'Tofu', 'Rice', 'Pasta', 'Quinoa', 'Bread', 'Potatoes', 'Tomatoes', 'Onions', 'Garlic', 'Bell peppers', 'Spinach', 'Broccoli', 'Carrots', 'Mushrooms', 'Avocado', 'Lemon', 'Olive oil', 'Butter', 'Cheese', 'Milk', 'Yogurt', 'Salt', 'Black pepper', 'Basil', 'Oregano', 'Paprika'];
-
-app.get('/api/dietary-styles', (req, res) => res.json(dietaryStyles));
-app.get('/api/ingredients', (req, res) => res.json(commonIngredients));
-
+// ========== GEMINI ==========
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-app.post('/api/generate-recipe', async (req, res) => {
+router.get('/gemini', async (req, res) => {
+  const { ingredients } = req.query;
+  if (!ingredients) return res.status(400).json({ error: "Missing ingredients" });
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const prompt = `Generate 3 recipes using these ingredients: ${ingredients}.
+      Return JSON like:
+      [
+        { "title": "...", "ingredients": ["..."], "instructions": ["..."] }
+      ]`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+
+    let recipes;
     try {
-        const { ingredients, dietaryStyle } = req.body;
-        if (!ingredients || ingredients.length === 0 || !dietaryStyle) {
-            return res.status(400).json({ error: 'Ingredients and dietary style are required.' });
-        }
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-        const prompt = `
-          You are a helpful recipe generator. Create a recipe based on the following details.
-          Ingredients: ${ingredients.join(', ')}
-          Dietary Style: ${dietaryStyle}
-          Please provide a response in a clean JSON format. Do not include any text before or after the JSON object.
-        `;
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-        const jsonResponse = JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim());
-        res.json(jsonResponse);
-    } catch (error) {
-        console.error('Error generating recipe:', error);
-        res.status(500).json({ error: 'Failed to generate recipe.' });
+      recipes = JSON.parse(text);
+    } catch {
+      recipes = [{ note: "Could not parse JSON", raw: text }];
     }
+
+    res.json(recipes);
+  } catch (err) {
+    console.error("Gemini error:", err);
+    res.status(500).json({ error: "Gemini API call failed" });
+  }
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+// ========== SPOONACULAR ==========
+const SPOON_KEY = process.env.SPOONACULAR_KEY;
+const SPOON_BASE = "https://api.spoonacular.com";
+
+router.get('/spoonacular', async (req, res) => {
+  const { ingredients } = req.query;
+  if (!ingredients) return res.status(400).json({ error: "Missing ingredients" });
+
+  try {
+    const resp = await axios.get(`${SPOON_BASE}/recipes/findByIngredients`, {
+      params: {
+        ingredients,
+        number: 5,
+        apiKey: SPOON_KEY,
+      },
+    });
+    res.json(resp.data);
+  } catch (err: any) {
+    console.error("Spoonacular error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Spoonacular API call failed" });
+  }
 });
+
+export default router;
