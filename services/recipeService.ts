@@ -1,27 +1,17 @@
-export const API_BASE_URL = "http://172.27.7.67:3001";
-// 🔼 replace with your backend server URL (can be localhost or deployed endpoint)
+export const API_BASE_URL = "http://localhost:3001/api";
 
-export async function searchRecipes(ingredients: string[], dietaryStyle: string) {
+// ✅ Quick test function
+export async function testBackendConnection() {
   try {
-    const response = await fetch(`${API_BASE_URL}/recipes/search`, {
-      method: "POST", // or GET depending on backend
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ingredients,
-        dietaryStyle,
-      }),
-    });
-
+    const response = await fetch(`${API_BASE_URL}/ingredients`);
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      throw new Error(`Server responded with ${response.status}`);
     }
-
     const data = await response.json();
-    return data; // { id, title, ingredients, instructions, nutrition, ... }
+    console.log("✅ Backend is working! Ingredients fetched:", data);
+    return data;
   } catch (error) {
-    console.error("Recipe search failed:", error);
-    throw error;
+    console.error("❌ Backend connection failed:", error);
+    return null;
   }
 }
